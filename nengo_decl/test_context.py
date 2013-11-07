@@ -3,6 +3,7 @@ import numpy as np
 
 import nengo
 import nengo.helpers
+from nengo.objects import Uniform
 from nengo_decl import *
 
 class TestBasics(unittest.TestCase):
@@ -56,4 +57,110 @@ class TestBasics(unittest.TestCase):
         
 
 
+
+    def test_basal_ganglia(self):
+        # connection weights from (Gurney, Prescott, & Redgrave, 2001)
+        mm = 1
+        mp = 1
+        me = 1
+        mg = 1
+        ws = 1
+        wt = 1
+        wm = 1
+        wg = 1
+        wp = 0.9
+        we = 0.3
+        e = 0.2
+        ep = -0.25
+        ee = -0.2
+        eg = -0.2
+        le = 0.2
+        lg = 0.2
+
+        dimensions = 1
+        n_neurons_per_ensemble = 100
+        radius = 1.5
+        tau_ampa = 0.002
+        tau_gaba = 0.008
+        output_weight = -3
+
+        encoders = np.ones((n_neurons_per_ensemble, 1))
+
+        model = nengo.Model('Basal Ganglia')
+        with declarative_syntax(model):
+            for name, lbound in (
+                ('StrD1', e),
+                ('StrD2', e),
+                ('STN', ep),
+                ('GPi', eg),
+                ('GPe', ee)):
+                ensemble_array(name,
+                               intercepts=Uniform(lbound, 1),
+                               neurons= nengo.LIF(
+                                   n_neurons_per_ensemble * dimensions),
+                               n_ensembles= dimensions,
+                               radius= radius,
+                               encoders= encoders,
+                              )
+            passthrough('input', dimensions=dimensions)
+            passthrough('output', dimensions=dimensions)
+
+            # spread the input to StrD1, StrD2, and STN
+            connect('input', 'StrD1',
+                    filter=None, 
+                    transform=np.eye(dimensions) * ws * (1 + lg))
+
+            connect('input', 'strD2',
+                    filter=None,
+                    transform=np.eye(dimensions) * ws * (1 - le))
+
+            connect('input', 'STN',
+                    filter=None,
+                    transform=np.eye(dimensions) * wt)
+
+            # connect the striatum to the GPi and GPe (inhibitory)
+            def func_str(x):
+                return max(x[0] - e, 0) * mm
+
+            connect('StrD1', 'GPi',
+                    function=func_str,
+                    filter=tau_gaba,
+                    transform=-np.eye(dimensions) * wm)
+
+            connect('StrD2', 'GPe',
+                    function=func_str,
+                    filter=tau_gaba,
+                    transform=-np.eye(dimensions) * wm)
+                        
+            # connect the STN to GPi and GPe (broad and excitatory)
+            def func_stn(x):
+                return max(x[0] - ep) * mp
+
+            tr = np.ones((dimensions, dimensions)) * wp
+            connect('STN', 'GPi',
+                    function=func_stn,
+                    transform=tr,
+                    filter=tau_ampa)
+            connect('STN', 'GPe',
+                    function=func_stn,
+                    transform=tr,
+                    filter=tau_ampa)
+
+            # connect the GPe to GPi and STN (inhibitory)
+            def func_gpe(x):
+                return max(x[0] - ee) * me
+            connect('GPe', 'GPi',
+                    function=func_gpe,
+                    filter=tau_gaba,
+                    transform=-np.eye(dimensions) * we)
+            connect('GPe', 'STN',
+                    function=func_gpe,
+                    filter=tau_gaba,
+                    transform=-np.eye(dimensions) * wg)
+
+            #connect GPi to output (inhibitory)
+            connect('GPi', 'output',
+                    function=lambda x: max(x[0] - eg) * mg,
+                    filter=None,
+                    transform=np.eye(dimensions) * output_weight)
 
