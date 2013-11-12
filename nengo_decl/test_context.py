@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 import nengo
-import nengo.helpers
+from nengo.helpers import piecewise
 from nengo.objects import Uniform
 from nengo_decl import conn, ens, probe, declarative_syntax
 
@@ -20,10 +20,8 @@ class TestBasics(unittest.TestCase):
                  np.tile([[1,1],[-1,1],[1,-1],[-1,-1]],
                      (ens.n_neurons('Combined')/4, 1)))
 
-            ens.node('Input A', nengo.helpers.piecewise(
-                {0:0, 2.5:10, 4:-10}))
-            ens.node('Input B', nengo.helpers.piecewise(
-                {0:10, 1.5:2, 3:0, 4.5:2}))
+            ens.node('Input A', piecewise({0:0, 2.5:10, 4:-10}))
+            ens.node('Input B', piecewise({0:10, 1.5:2, 3:0, 4.5:2}))
 
             conn.connect('Input A', 'A')
             conn.connect('Input B', 'B')
