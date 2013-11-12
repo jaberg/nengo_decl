@@ -1,4 +1,4 @@
-from context import declarative_syntax, active_model
+from context import declarative_syntax, active_model, subnetwork
 from conn import connect
 from ens import (
     ensemble,
