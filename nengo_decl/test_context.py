@@ -4,30 +4,32 @@ import numpy as np
 import nengo
 import nengo.helpers
 from nengo.objects import Uniform
-from nengo_decl import *
+from nengo_decl import conn, ens, probe, declarative_syntax
 
 class TestBasics(unittest.TestCase):
     def test_multiplication(self):
         model = nengo.Model('multiplication')
 
         with declarative_syntax(model):
-            ensemble('A', nengo.LIF(100), dimensions=1, radius=10)
-            ensemble('B', nengo.LIF(100), dimensions=1, radius=10)
-            ensemble('Combined', nengo.LIF(100), dimensions=2, radius=15)
-            ensemble('D', nengo.LIF(100), dimensions=1, radius=20)
+            ens.ensemble('A', nengo.LIF(100), dimensions=1, radius=10)
+            ens.ensemble('B', nengo.LIF(100), dimensions=1, radius=10)
+            ens.ensemble('Combined', nengo.LIF(100), dimensions=2, radius=15)
+            ens.ensemble('D', nengo.LIF(100), dimensions=1, radius=20)
 
-            encoders('Combined',
+            ens.encoders('Combined',
                  np.tile([[1,1],[-1,1],[1,-1],[-1,-1]],
-                     (n_neurons('Combined')/4, 1)))
+                     (ens.n_neurons('Combined')/4, 1)))
 
-            node('Input A', nengo.helpers.piecewise({0:0, 2.5:10, 4:-10}))
-            node('Input B', nengo.helpers.piecewise({0:10, 1.5:2, 3:0, 4.5:2}))
+            ens.node('Input A', nengo.helpers.piecewise(
+                {0:0, 2.5:10, 4:-10}))
+            ens.node('Input B', nengo.helpers.piecewise(
+                {0:10, 1.5:2, 3:0, 4.5:2}))
 
-            connect('Input A', 'A')
-            connect('Input B', 'B')
-            connect('A','Combined', transform=[[1], [0]])
-            connect('B','Combined', transform=[[0], [1]])
-            connect('Combined', 'D', function=lambda x: x[0] * x[1])
+            conn.connect('Input A', 'A')
+            conn.connect('Input B', 'B')
+            conn.connect('A','Combined', transform=[[1], [0]])
+            conn.connect('B','Combined', transform=[[0], [1]])
+            conn.connect('Combined', 'D', function=lambda x: x[0] * x[1])
 
             for name in 'Input A', 'Input B':
                 probe(name)
@@ -94,7 +96,7 @@ class TestBasics(unittest.TestCase):
                 ('STN', ep),
                 ('GPi', eg),
                 ('GPe', ee)):
-                ensemble_array(name,
+                ens.ensemble_array(name,
                                intercepts=Uniform(lbound, 1),
                                neurons= nengo.LIF(
                                    n_neurons_per_ensemble * dimensions),
@@ -102,19 +104,19 @@ class TestBasics(unittest.TestCase):
                                radius= radius,
                                encoders= encoders,
                               )
-            passthrough('input', dimensions=dimensions)
-            passthrough('output', dimensions=dimensions)
+            ens.passthrough('input', dimensions=dimensions)
+            ens.passthrough('output', dimensions=dimensions)
 
             # spread the input to StrD1, StrD2, and STN
-            connect('input', 'StrD1',
+            conn.connect('input', 'StrD1',
                     filter=None, 
                     transform=np.eye(dimensions) * ws * (1 + lg))
 
-            connect('input', 'strD2',
+            conn.connect('input', 'strD2',
                     filter=None,
                     transform=np.eye(dimensions) * ws * (1 - le))
 
-            connect('input', 'STN',
+            conn.connect('input', 'STN',
                     filter=None,
                     transform=np.eye(dimensions) * wt)
 
@@ -122,12 +124,12 @@ class TestBasics(unittest.TestCase):
             def func_str(x):
                 return max(x[0] - e, 0) * mm
 
-            connect('StrD1', 'GPi',
+            conn.connect('StrD1', 'GPi',
                     function=func_str,
                     filter=tau_gaba,
                     transform=-np.eye(dimensions) * wm)
 
-            connect('StrD2', 'GPe',
+            conn.connect('StrD2', 'GPe',
                     function=func_str,
                     filter=tau_gaba,
                     transform=-np.eye(dimensions) * wm)
@@ -137,11 +139,11 @@ class TestBasics(unittest.TestCase):
                 return max(x[0] - ep) * mp
 
             tr = np.ones((dimensions, dimensions)) * wp
-            connect('STN', 'GPi',
+            conn.connect('STN', 'GPi',
                     function=func_stn,
                     transform=tr,
                     filter=tau_ampa)
-            connect('STN', 'GPe',
+            conn.connect('STN', 'GPe',
                     function=func_stn,
                     transform=tr,
                     filter=tau_ampa)
@@ -149,17 +151,17 @@ class TestBasics(unittest.TestCase):
             # connect the GPe to GPi and STN (inhibitory)
             def func_gpe(x):
                 return max(x[0] - ee) * me
-            connect('GPe', 'GPi',
+            conn.connect('GPe', 'GPi',
                     function=func_gpe,
                     filter=tau_gaba,
                     transform=-np.eye(dimensions) * we)
-            connect('GPe', 'STN',
+            conn.connect('GPe', 'STN',
                     function=func_gpe,
                     filter=tau_gaba,
                     transform=-np.eye(dimensions) * wg)
 
             #connect GPi to output (inhibitory)
-            connect('GPi', 'output',
+            conn.connect('GPi', 'output',
                     function=lambda x: max(x[0] - eg) * mg,
                     filter=None,
                     transform=np.eye(dimensions) * output_weight)
